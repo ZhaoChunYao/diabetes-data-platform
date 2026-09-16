@@ -19,7 +19,15 @@ import logging
 app = Flask(__name__)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTEND_DIR = os.path.join(ROOT, 'frontend')
 load_dotenv(os.path.join(ROOT, '.env'))
+
+DB_DRIVER = os.getenv('DB_DRIVER', 'mysql').lower()
+if DB_DRIVER not in ('mysql', 'postgres'):
+    raise ValueError("DB_DRIVER must be 'mysql' or 'postgres'")
+
+DATA_SOURCE = DB_DRIVER
+RANDOM_ORDER = 'RANDOM()' if DB_DRIVER == 'postgres' else 'RAND()'
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -36,12 +44,31 @@ DB_CONFIG = {
     'pool_reset_session': True
 }
 
+POSTGRES_CONFIG = {
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'user': os.getenv('DB_USER', 'app'),
+    'password': os.getenv('DB_PASS', ''),
+    'dbname': os.getenv('DB_NAME', 'project_554'),
+    'port': int(os.getenv('DB_PORT', '5432'))
+}
+
 # Create connection pool
 try:
-    connection_pool = pooling.MySQLConnectionPool(**DB_CONFIG)
-    logger.info(f"✓ MySQL connection pool created for database: {DB_CONFIG['database']}")
+    if DB_DRIVER == 'postgres':
+        import psycopg
+        from psycopg.rows import dict_row
+
+        # Phase 2 uses one short-lived connection per query. This keeps the
+        # adapter small while the PostgreSQL version is being validated.
+        test_connection = psycopg.connect(**POSTGRES_CONFIG)
+        test_connection.close()
+        connection_pool = True
+        logger.info(f"✓ PostgreSQL connection verified for database: {POSTGRES_CONFIG['dbname']}")
+    else:
+        connection_pool = pooling.MySQLConnectionPool(**DB_CONFIG)
+        logger.info(f"✓ MySQL connection pool created for database: {DB_CONFIG['database']}")
 except Exception as e:
-    logger.error(f"✗ Failed to create connection pool: {e}")
+    logger.error(f"✗ Failed to initialize {DB_DRIVER} database connection: {e}")
     connection_pool = None
 
 
@@ -49,6 +76,8 @@ def get_db_connection():
     """Get a connection from the pool."""
     if connection_pool is None:
         raise Exception("Connection pool not initialized")
+    if DB_DRIVER == 'postgres':
+        return psycopg.connect(**POSTGRES_CONFIG)
     return connection_pool.get_connection()
 
 
@@ -69,7 +98,10 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=True):
     cursor = None
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
+        if DB_DRIVER == 'postgres':
+            cursor = conn.cursor(row_factory=dict_row)
+        else:
+            cursor = conn.cursor(dictionary=True)
         cursor.execute(query, params or ())
         
         if fetch_one:
@@ -99,29 +131,25 @@ def execute_query(query, params=None, fetch_one=False, fetch_all=True):
 @app.route('/')
 def index():
     """Serve the landing page."""
-    static_dir = Path(ROOT) / 'frontend'
-    return send_from_directory(static_dir, 'index.html')
+    return send_from_directory(FRONTEND_DIR, 'index.html')
 
 
 @app.route('/feature3')
 def feature3():
     """Serve Feature 3 - CGM Trend Explorer."""
-    static_dir = Path(ROOT) / 'frontend'
-    return send_from_directory(static_dir, 'feature3.html')
+    return send_from_directory(FRONTEND_DIR, 'feature3.html')
 
 
 @app.route('/feature4')
 def feature4():
     """Serve Feature 4 - CGM & Activity Correlation."""
-    static_dir = Path(ROOT) / 'frontend'
-    return send_from_directory(static_dir, 'feature4.html')
+    return send_from_directory(FRONTEND_DIR, 'feature4.html')
 
 
 @app.route('/<path:filename>')
 def serve_static(filename):
     """Serve other static files."""
-    static_dir = Path(ROOT) / 'frontend'
-    return send_from_directory(static_dir, filename)
+    return send_from_directory(FRONTEND_DIR, filename)
 
 
 # ============================================================================
@@ -142,7 +170,7 @@ def health():
         return jsonify({
             'status': 'healthy',
             'database': 'connected',
-            'backend': 'mysql'
+            'backend': DB_DRIVER
         })
     except Exception as e:
         return jsonify({
@@ -302,7 +330,7 @@ def get_cgm_trend():
             'start': start,
             'end': end,
             'rows': rows,
-            'source': 'mysql'
+            'source': DATA_SOURCE
         })
         
     except Exception as e:
@@ -452,7 +480,7 @@ def get_participants_meta():
         
         return jsonify({
             'participants': participants,
-            'source': 'mysql'
+            'source': DATA_SOURCE
         })
         
     except Exception as e:
@@ -475,7 +503,7 @@ def get_participants():
         study_group = request.args.get('study_group', request.args.get('condition_group'))
         limit = int(request.args.get('limit', 100))
         
-        where_clause = ""
+        where_clause = "WHERE 1=1"
         params = []
         if study_group:
             where_clause = "WHERE p.study_group = %s"
@@ -509,7 +537,7 @@ def get_participants():
                 GROUP BY participant_id
             ) act ON p.participant_id = act.participant_id
             {where_clause}
-            HAVING cgm_days > 0 OR activity_days > 0
+              AND (COALESCE(cgm.day_count, 0) > 0 OR COALESCE(act.day_count, 0) > 0)
             ORDER BY cgm_days DESC, activity_days DESC
             LIMIT %s
         """
@@ -585,8 +613,8 @@ def get_stats():
         return jsonify({
             'table_counts': {row['table_name']: row['count'] for row in results},
             'cgm_activity_intersection': intersection['count'],
-            'backend': 'mysql',
-            'database': DB_CONFIG['database']
+            'backend': DB_DRIVER,
+            'database': POSTGRES_CONFIG['dbname'] if DB_DRIVER == 'postgres' else DB_CONFIG['database']
         })
         
     except Exception as e:
@@ -652,13 +680,13 @@ def get_single_participant_data():
         
         for group in groups:
             # Get a random participant from this group that has CGM timeseries data
-            query = """
+            query = f"""
                 SELECT DISTINCT p.participant_id, p.study_group, p.age
                 FROM participants p
                 JOIN cgm_readings c ON p.participant_id = c.participant_id
                 WHERE p.study_group = %s
                   AND c.day_index BETWEEN %s AND %s
-                ORDER BY RAND()
+                ORDER BY {RANDOM_ORDER}
                 LIMIT 1
             """
             result = execute_query(query, (group, day_start, day_end))
@@ -1020,7 +1048,7 @@ def get_feature4_correlation():
                 'activity_metric': activity_metric,
                 'lag': lag,
                 'message': 'Insufficient data for correlation analysis',
-                'source': 'mysql'
+                'source': DATA_SOURCE
             })
         
         # Calculate correlations by group using numpy
@@ -1077,7 +1105,7 @@ def get_feature4_correlation():
             'cgm_metric': cgm_metric,
             'activity_metric': activity_metric,
             'lag': lag,
-            'source': 'mysql'
+            'source': DATA_SOURCE
         })
         
     except Exception as e:
@@ -1377,8 +1405,9 @@ if __name__ == '__main__':
         exit(1)
     
     port = int(os.getenv('PORT', 5001))
-    logger.info(f"Starting MySQL-backed Flask server on port {port}")
-    logger.info(f"Database: {DB_CONFIG['database']}")
+    active_database = POSTGRES_CONFIG['dbname'] if DB_DRIVER == 'postgres' else DB_CONFIG['database']
+    logger.info(f"Starting {DB_DRIVER}-backed Flask server on port {port}")
+    logger.info(f"Database: {active_database}")
     logger.info(f"Open http://localhost:{port} in your browser")
     
     # Debug mode disabled for better performance
