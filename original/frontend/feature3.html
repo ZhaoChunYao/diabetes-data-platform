@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Feature 3 — CGM Trend Explorer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      overflow: hidden;
+    }
+    
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 32px;
+      text-align: center;
+    }
+    
+    .back-btn {
+      display: inline-block;
+      margin-bottom: 12px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 6px;
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .subtitle {
+      font-size: 14px;
+      opacity: 0.95;
+      line-height: 1.5;
+    }
+    
+    .content {
+      padding: 32px;
+    }
+    
+    .controls {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #495057;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      background: white;
+      transition: all 0.2s;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .range-inputs {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .range-inputs input {
+      width: 70px;
+    }
+    
+    .range-inputs span {
+      color: #6c757d;
+      font-size: 14px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    #chart {
+      width: 100%;
+      height: 420px;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      background: white;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .stat-card {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #6c757d;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .legend {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: #495057;
+    }
+    
+    .error {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 12px;
+      color: #856404;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <a href="/" class="back-btn">← Back to Home</a>
+      <h1>Feature 3 — CGM Trend Explorer</h1>
+      <p class="subtitle">Analyze continuous glucose monitoring trends with daily aggregations including mean glucose and time-in-range</p>
+    </header>
+    
+    <div class="content">
+      <div class="controls">
+        <div class="control-grid">
+          <div class="control-group">
+            <label for="group">Study Group</label>
+            <select id="group">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="age_min">Age Min</label>
+            <input id="age_min" type="number" min="0" placeholder="e.g. 18" />
+          </div>
+          <div class="control-group">
+            <label for="age_max">Age Max</label>
+            <input id="age_max" type="number" min="0" placeholder="e.g. 65" />
+          </div>
+          <div class="control-group">
+            <label>Day Range</label>
+            <div class="range-inputs">
+              <input id="start" type="number" min="1" value="1" />
+              <span>to</span>
+              <input id="end" type="number" min="1" value="10" />
+            </div>
+          </div>
+        </div>
+        <button id="run">Generate CGM Trend</button>
+      </div>
+
+      <div id="error" class="error" style="display: none;"></div>
+      
+      <div id="stats-container" class="stats-grid" style="display: none;"></div>
+      
+      <section id="chart"></section>
+      
+      <div class="legend" id="legend" style="display: none;">
+        <strong>Glossary:</strong> TIR = Time in Range (70–180 mg/dL) • TAR = Time Above Range (&gt;180 mg/dL) • TBR = Time Below Range (&lt;70 mg/dL)
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '';
+    
+    // Load study groups on page load
+    async function loadGroups() {
+      try {
+        const response = await fetch(`${API_BASE}/api/groups`);
+        const data = await response.json();
+        
+        const select = document.getElementById('group');
+        select.innerHTML = '<option value="">All Groups</option>';
+        
+        data.groups.forEach(g => {
+          const option = document.createElement('option');
+          option.value = g.id;
+          option.textContent = formatGroupName(g.id) + ` (${g.count})`;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error loading groups:', error);
+        document.getElementById('group').innerHTML = '<option value="">Error loading groups</option>';
+      }
+    }
+    
+    function formatGroupName(group) {
+      const names = {
+        'healthy': 'Healthy',
+        'pre_diabetes_lifestyle_controlled': 'Pre-Diabetes',
+        'oral_medication_and_or_non_insulin_injectable_medication_controlled': 'Non-Insulin Medication',
+        'insulin_dependent': 'Insulin Dependent'
+      };
+      return names[group] || group;
+    }
+    
+    document.getElementById('run').addEventListener('click', async () => {
+      const group = document.getElementById('group').value;
+      const ageMin = document.getElementById('age_min').value;
+      const ageMax = document.getElementById('age_max').value;
+      const start = document.getElementById('start').value;
+      const end = document.getElementById('end').value;
+      
+      const errorDiv = document.getElementById('error');
+      errorDiv.style.display = 'none';
+      
+      if (!start || !end) {
+        errorDiv.textContent = 'Please enter day range';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      try {
+        // If no group selected (All Groups), fetch data for each group separately
+        if (!group) {
+          const allGroups = ['healthy', 'pre_diabetes_lifestyle_controlled', 
+                           'oral_medication_and_or_non_insulin_injectable_medication_controlled', 
+                           'insulin_dependent'];
+          
+          const promises = allGroups.map(g => {
+            let url = `${API_BASE}/api/cgm/trend?start=${start}&end=${end}&group=${encodeURIComponent(g)}`;
+            if (ageMin) url += `&age_min=${ageMin}`;
+            if (ageMax) url += `&age_max=${ageMax}`;
+            return fetch(url).then(r => r.json()).then(data => ({group: g, data: data.rows || []}));
+          });
+          
+          const results = await Promise.all(promises);
+          
+          // Filter out groups with no data
+          const validResults = results.filter(r => r.data.length > 0);
+          
+          if (validResults.length === 0) {
+            errorDiv.textContent = 'No data found for the selected filters';
+            errorDiv.style.display = 'block';
+            document.getElementById('chart').innerHTML = '';
+            document.getElementById('stats-container').style.display = 'none';
+            document.getElementById('legend').style.display = 'none';
+            return;
+          }
+          
+          renderMultiGroupChart(validResults);
+          renderMultiGroupStats(validResults);
+          document.getElementById('legend').style.display = 'block';
+        } else {
+          // Single group selected
+          let url = `${API_BASE}/api/cgm/trend?start=${start}&end=${end}`;
+          if (group) url += `&group=${encodeURIComponent(group)}`;
+          if (ageMin) url += `&age_min=${ageMin}`;
+          if (ageMax) url += `&age_max=${ageMax}`;
+          
+          const response = await fetch(url);
+          const data = await response.json();
+          
+          if (!data.rows || data.rows.length === 0) {
+            errorDiv.textContent = 'No data found for the selected filters';
+            errorDiv.style.display = 'block';
+            document.getElementById('chart').innerHTML = '';
+            document.getElementById('stats-container').style.display = 'none';
+            document.getElementById('legend').style.display = 'none';
+            return;
+          }
+          
+          renderChart(data.rows);
+          renderStats(data.rows);
+          document.getElementById('legend').style.display = 'block';
+        }
+        
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        errorDiv.textContent = 'Error loading data: ' + error.message;
+        errorDiv.style.display = 'block';
+      }
+    });
+    
+    function renderStats(rows) {
+      const statsContainer = document.getElementById('stats-container');
+      statsContainer.style.display = 'grid';
+      
+      const avgGlucose = (rows.reduce((sum, r) => sum + r.avg_mean_glucose_weighted, 0) / rows.length).toFixed(1);
+      const avgTIR = (rows.reduce((sum, r) => sum + r.avg_tir, 0) / rows.length).toFixed(1);
+      const totalParticipants = rows[0].n_participants;
+      const days = rows.length;
+      
+      statsContainer.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Participants</div>
+          <div class="stat-value">${totalParticipants}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Days</div>
+          <div class="stat-value">${days}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Glucose</div>
+          <div class="stat-value">${avgGlucose} <span style="font-size: 14px; color: #6c757d;">mg/dL</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg TIR</div>
+          <div class="stat-value">${avgTIR} <span style="font-size: 14px; color: #6c757d;">%</span></div>
+        </div>
+      `;
+    }
+    
+    function renderMultiGroupStats(results) {
+      const statsContainer = document.getElementById('stats-container');
+      statsContainer.style.display = 'grid';
+      
+      const totalParticipants = results.reduce((sum, r) => {
+        return sum + (r.data[0]?.n_participants || 0);
+      }, 0);
+      
+      const allGlucose = results.flatMap(r => r.data.map(d => d.avg_mean_glucose_weighted));
+      const avgGlucose = (allGlucose.reduce((sum, v) => sum + v, 0) / allGlucose.length).toFixed(1);
+      
+      const allTIR = results.flatMap(r => r.data.map(d => d.avg_tir));
+      const avgTIR = (allTIR.reduce((sum, v) => sum + v, 0) / allTIR.length).toFixed(1);
+      
+      const days = results[0]?.data.length || 0;
+      
+      statsContainer.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Participants</div>
+          <div class="stat-value">${totalParticipants}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Days</div>
+          <div class="stat-value">${days}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Glucose</div>
+          <div class="stat-value">${avgGlucose} <span style="font-size: 14px; color: #6c757d;">mg/dL</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg TIR</div>
+          <div class="stat-value">${avgTIR} <span style="font-size: 14px; color: #6c757d;">%</span></div>
+        </div>
+      `;
+    }
+    
+    function renderMultiGroupChart(results) {
+      const container = document.getElementById('chart');
+      const width = Math.min(960, container.clientWidth);
+      const height = 420;
+      const padding = {left: 60, right: 140, top: 20, bottom: 50};
+      
+      container.innerHTML = '';
+      
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', width);
+      svg.setAttribute('height', height);
+      container.appendChild(svg);
+      
+      const innerW = width - padding.left - padding.right;
+      const innerH = height - padding.top - padding.bottom;
+      
+      // Get all days
+      const allDays = [...new Set(results.flatMap(r => r.data.map(d => d.day_index)))].sort((a, b) => a - b);
+      const xMin = Math.min(...allDays);
+      const xMax = Math.max(...allDays);
+      
+      // Get all glucose values for y scale
+      const allGlucose = results.flatMap(r => r.data.map(d => d.avg_mean_glucose_weighted));
+      const yMin = Math.max(70, Math.min(...allGlucose) - 10);
+      const yMax = Math.min(220, Math.max(...allGlucose) + 10);
+      
+      const x = d => padding.left + (innerW * (d - xMin) / (xMax - xMin || 1));
+      const y = v => padding.top + innerH - (innerH * (v - yMin) / (yMax - yMin || 1));
+      
+      // Y-axis grid lines and labels
+      const yTicks = [70, 100, 130, 160, 190, 220].filter(t => t >= yMin && t <= yMax);
+      yTicks.forEach(val => {
+        const yPos = y(val);
+        
+        const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        gridLine.setAttribute('x1', padding.left);
+        gridLine.setAttribute('x2', padding.left + innerW);
+        gridLine.setAttribute('y1', yPos);
+        gridLine.setAttribute('y2', yPos);
+        gridLine.setAttribute('stroke', '#e9ecef');
+        gridLine.setAttribute('stroke-width', '1');
+        svg.appendChild(gridLine);
+        
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', padding.left - 8);
+        label.setAttribute('y', yPos + 4);
+        label.setAttribute('text-anchor', 'end');
+        label.setAttribute('font-size', '12');
+        label.setAttribute('fill', '#6c757d');
+        label.textContent = val;
+        svg.appendChild(label);
+      });
+      
+      // Reference line for target glucose
+      const targetLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      targetLine.setAttribute('x1', padding.left);
+      targetLine.setAttribute('x2', padding.left + innerW);
+      targetLine.setAttribute('y1', y(180));
+      targetLine.setAttribute('y2', y(180));
+      targetLine.setAttribute('stroke', '#ff6b6b');
+      targetLine.setAttribute('stroke-width', '2');
+      targetLine.setAttribute('stroke-dasharray', '5,5');
+      svg.appendChild(targetLine);
+      
+      // Group colors
+      const groupColors = {
+        'healthy': '#22a779',
+        'pre_diabetes_lifestyle_controlled': '#ff7f0e',
+        'oral_medication_and_or_non_insulin_injectable_medication_controlled': '#2a73ff',
+        'insulin_dependent': '#8e44ad'
+      };
+      
+      // Draw a line for each group
+      results.forEach(result => {
+        const rows = result.data;
+        const color = groupColors[result.group] || '#667eea';
+        
+        // Draw line
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const pathData = rows.map((r, i) => 
+          `${i === 0 ? 'M' : 'L'} ${x(r.day_index)} ${y(r.avg_mean_glucose_weighted)}`
+        ).join(' ');
+        path.setAttribute('d', pathData);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', color);
+        path.setAttribute('stroke-width', '3');
+        svg.appendChild(path);
+        
+        // Draw data points
+        rows.forEach(r => {
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          circle.setAttribute('cx', x(r.day_index));
+          circle.setAttribute('cy', y(r.avg_mean_glucose_weighted));
+          circle.setAttribute('r', '4');
+          circle.setAttribute('fill', color);
+          svg.appendChild(circle);
+        });
+      });
+      
+      // X-axis labels
+      allDays.forEach(day => {
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', x(day));
+        label.setAttribute('y', padding.top + innerH + 25);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('font-size', '12');
+        label.setAttribute('fill', '#6c757d');
+        label.textContent = `Day ${day}`;
+        svg.appendChild(label);
+      });
+      
+      // Y-axis label
+      const yAxisLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      yAxisLabel.setAttribute('x', 20);
+      yAxisLabel.setAttribute('y', padding.top + innerH / 2);
+      yAxisLabel.setAttribute('text-anchor', 'middle');
+      yAxisLabel.setAttribute('font-size', '14');
+      yAxisLabel.setAttribute('font-weight', '600');
+      yAxisLabel.setAttribute('fill', '#495057');
+      yAxisLabel.setAttribute('transform', `rotate(-90, 20, ${padding.top + innerH / 2})`);
+      yAxisLabel.textContent = 'Mean Glucose (mg/dL)';
+      svg.appendChild(yAxisLabel);
+      
+      // Legend
+      results.forEach((result, i) => {
+        const color = groupColors[result.group] || '#667eea';
+        const legendY = padding.top + i * 25;
+        
+        const legendLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        legendLine.setAttribute('x1', padding.left + innerW + 15);
+        legendLine.setAttribute('x2', padding.left + innerW + 40);
+        legendLine.setAttribute('y1', legendY);
+        legendLine.setAttribute('y2', legendY);
+        legendLine.setAttribute('stroke', color);
+        legendLine.setAttribute('stroke-width', '3');
+        svg.appendChild(legendLine);
+        
+        const legendText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        legendText.setAttribute('x', padding.left + innerW + 45);
+        legendText.setAttribute('y', legendY + 4);
+        legendText.setAttribute('font-size', '12');
+        legendText.setAttribute('fill', '#495057');
+        legendText.textContent = formatGroupName(result.group);
+        svg.appendChild(legendText);
+      });
+    }
+    
+    function renderChart(rows) {
+      const container = document.getElementById('chart');
+      const width = Math.min(960, container.clientWidth);
+      const height = 380;
+      const padding = {left: 60, right: 20, top: 20, bottom: 50};
+      
+      container.innerHTML = '';
+      
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', width);
+      svg.setAttribute('height', height);
+      container.appendChild(svg);
+      
+      const innerW = width - padding.left - padding.right;
+      const innerH = height - padding.top - padding.bottom;
+      
+      const days = rows.map(r => r.day_index);
+      const values = rows.map(r => r.avg_mean_glucose_weighted);
+      
+      const xMin = Math.min(...days);
+      const xMax = Math.max(...days);
+      const yMin = 70;
+      const yMax = 220;
+      
+      const x = d => padding.left + (innerW * (d - xMin) / (xMax - xMin || 1));
+      const y = v => padding.top + innerH - (innerH * (v - yMin) / (yMax - yMin || 1));
+      
+      // Y-axis grid lines and labels
+      const yTicks = [70, 100, 130, 160, 190, 220];
+      yTicks.forEach(val => {
+        const yPos = y(val);
+        
+        const gridLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        gridLine.setAttribute('x1', padding.left);
+        gridLine.setAttribute('x2', padding.left + innerW);
+        gridLine.setAttribute('y1', yPos);
+        gridLine.setAttribute('y2', yPos);
+        gridLine.setAttribute('stroke', '#e9ecef');
+        gridLine.setAttribute('stroke-width', '1');
+        svg.appendChild(gridLine);
+        
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', padding.left - 8);
+        label.setAttribute('y', yPos + 4);
+        label.setAttribute('text-anchor', 'end');
+        label.setAttribute('font-size', '12');
+        label.setAttribute('fill', '#6c757d');
+        label.textContent = val;
+        svg.appendChild(label);
+      });
+      
+      // Reference lines for glucose ranges
+      const targetLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      targetLine.setAttribute('x1', padding.left);
+      targetLine.setAttribute('x2', padding.left + innerW);
+      targetLine.setAttribute('y1', y(180));
+      targetLine.setAttribute('y2', y(180));
+      targetLine.setAttribute('stroke', '#ff6b6b');
+      targetLine.setAttribute('stroke-width', '2');
+      targetLine.setAttribute('stroke-dasharray', '5,5');
+      svg.appendChild(targetLine);
+      
+      // Area chart for standard deviation
+      if (rows.some(r => r.avg_sd_glucose)) {
+        const upperPath = rows.map((r, i) => {
+          const xPos = x(r.day_index);
+          const yPos = y(Math.min(yMax, r.avg_mean_glucose_weighted + r.avg_sd_glucose));
+          return `${i === 0 ? 'M' : 'L'} ${xPos} ${yPos}`;
+        }).join(' ');
+        
+        const lowerPath = rows.slice().reverse().map(r => {
+          const xPos = x(r.day_index);
+          const yPos = y(Math.max(yMin, r.avg_mean_glucose_weighted - r.avg_sd_glucose));
+          return `L ${xPos} ${yPos}`;
+        }).join(' ');
+        
+        const area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        area.setAttribute('d', `${upperPath} ${lowerPath} Z`);
+        area.setAttribute('fill', 'rgba(102, 126, 234, 0.1)');
+        svg.appendChild(area);
+      }
+      
+      // Main line
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const pathData = rows.map((r, i) => 
+        `${i === 0 ? 'M' : 'L'} ${x(r.day_index)} ${y(r.avg_mean_glucose_weighted)}`
+      ).join(' ');
+      path.setAttribute('d', pathData);
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#667eea');
+      path.setAttribute('stroke-width', '3');
+      svg.appendChild(path);
+      
+      // Data points
+      rows.forEach(r => {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x(r.day_index));
+        circle.setAttribute('cy', y(r.avg_mean_glucose_weighted));
+        circle.setAttribute('r', '5');
+        circle.setAttribute('fill', '#667eea');
+        svg.appendChild(circle);
+      });
+      
+      // X-axis labels
+      rows.forEach(r => {
+        const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        label.setAttribute('x', x(r.day_index));
+        label.setAttribute('y', padding.top + innerH + 25);
+        label.setAttribute('text-anchor', 'middle');
+        label.setAttribute('font-size', '12');
+        label.setAttribute('fill', '#6c757d');
+        label.textContent = `Day ${r.day_index}`;
+        svg.appendChild(label);
+      });
+      
+      // Axis labels
+      const yAxisLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      yAxisLabel.setAttribute('x', 20);
+      yAxisLabel.setAttribute('y', padding.top + innerH / 2);
+      yAxisLabel.setAttribute('text-anchor', 'middle');
+      yAxisLabel.setAttribute('font-size', '14');
+      yAxisLabel.setAttribute('font-weight', '600');
+      yAxisLabel.setAttribute('fill', '#495057');
+      yAxisLabel.setAttribute('transform', `rotate(-90, 20, ${padding.top + innerH / 2})`);
+      yAxisLabel.textContent = 'Mean Glucose (mg/dL)';
+      svg.appendChild(yAxisLabel);
+    }
+    
+    // Load groups on page load
+    loadGroups();
+  </script>
+</body>
+</html>

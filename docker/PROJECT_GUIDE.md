@@ -180,9 +180,9 @@ This baseline is intentionally still MySQL-based. The complete MySQL Docker vers
 
 Phase 1 packages the existing Flask application and the complete MySQL database in a persistent volume. It is a portability exercise: the goal is to prove that the application can start on another machine with one command and that the full database survives an application restart.
 
-The Phase 1 files are `Dockerfile`, `docker-compose.yml`, and `docker/mysql/init/999_readiness.sql`. The complete SQL dump is mounted into the MySQL container at runtime rather than copied into the Flask image. The raw dataset and Python virtual environment are excluded from the image by `.dockerignore`.
+The Phase 1 files are `Dockerfile`, `docker-compose.yml`, and `mysql/init/999_readiness.sql`. The complete SQL dump is mounted into the MySQL container at runtime rather than copied into the Flask image. The raw dataset and Python virtual environment are excluded from the image by `.dockerignore`.
 
-The earlier `docker/mysql/init/001_baseline.sql` is retained as the Phase 1A demo fixture, but it is not mounted by the default Compose file. The default Compose file now uses the full SQL dump and a separate `mysql_full_data` volume.
+The earlier `mysql/init/001_baseline.sql` is retained as the Phase 1A demo fixture, but it is not mounted by the default Compose file. The default Compose file now uses the full SQL dump and a separate `mysql_full_data` volume.
 
 From this project folder:
 
@@ -190,7 +190,7 @@ From this project folder:
 docker compose up --build
 ```
 
-On the first run, MySQL imports `sql_dump/project_554_complete.sql`. This can take a while. The health check allows up to 30 minutes for initialization, and the application is not considered ready until the final readiness marker has been written after the dump import completes. If an import is interrupted or the volume is left unhealthy, remove only the Docker test volume with `docker compose down -v` and start again; this does not touch a separate host MySQL installation.
+On the first run, MySQL imports `../sql_dump/project_554_complete.sql`. This can take a while. The health check allows up to 30 minutes for initialization, and the application is not considered ready until the final readiness marker has been written after the dump import completes. If an import is interrupted or the volume is left unhealthy, remove only the Docker test volume with `docker compose down -v` and start again; this does not touch a separate host MySQL installation.
 
 Then check:
 
@@ -214,7 +214,7 @@ Phase 2 demonstrates that the application can use PostgreSQL without creating a 
 - The few database-specific points are adapted, including PostgreSQL connections, the random ordering function (`RANDOM()` instead of MySQL `RAND()`), and the participant coverage filter that previously relied on a MySQL-style `HAVING` alias.
 - `Dockerfile.postgres` installs the PostgreSQL driver while preserving the same Flask frontend and backend.
 - `docker-compose.postgres.yml` starts PostgreSQL on host port `5433` and the PostgreSQL-backed Flask app on host port `5002`. These ports are separate from the MySQL version's `3307` and `5001` ports.
-- `docker/postgres/init/001_schema_and_seed.sql` creates the metadata, daily aggregate, and raw-timeseries table shapes needed by the main application paths. It inserts a small representative dataset and a final readiness marker.
+- `postgres/init/001_schema_and_seed.sql` creates the metadata, daily aggregate, and raw-timeseries table shapes needed by the main application paths. It inserts a small representative dataset and a final readiness marker.
 - PostgreSQL stores its data in a separate named volume, `postgres_data`.
 
 ### Start the PostgreSQL version

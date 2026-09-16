@@ -1,0 +1,38 @@
+# Local environments and secrets
+.venv/
+.env
+.env.*
+!.env.example
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local/editor/OS files
+.Rhistory
+desktop.ini
+.DS_Store
+.vscode/
+
+# Generated documentation exports
+/README.html
+/START_HERE.html
+/DATABASE_DESIGN_REPORT.html
+
+# Large or sensitive source data
+dataset/
+sql_dump/
+*.zip
+*.7z
+*.bak
+
+# Runtime and test output
+*.log
+coverage.xml
+.coverage
+htmlcov/
+
+# Docker/local state
+.docker/
+docker-data/

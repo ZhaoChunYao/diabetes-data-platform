@@ -13,8 +13,8 @@ services:
     volumes:
       - mysql_full_data:/var/lib/mysql
       # The dump is mounted at runtime, not copied into the Flask image.
-      - ./sql_dump/project_554_complete.sql:/docker-entrypoint-initdb.d/010_project_554_complete.sql:ro
-      - ./docker/mysql/init/999_readiness.sql:/docker-entrypoint-initdb.d/999_readiness.sql:ro
+      - ../sql_dump/project_554_complete.sql:/docker-entrypoint-initdb.d/010_project_554_complete.sql:ro
+      - ./mysql/init/999_readiness.sql:/docker-entrypoint-initdb.d/999_readiness.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "mysql -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} -D $${MYSQL_DATABASE} -Nse \"SELECT COUNT(*) = 1 FROM _docker_init_status WHERE status = 'ready'\" | grep -q 1"]
       # The full SQL dump is imported before the readiness marker is created.

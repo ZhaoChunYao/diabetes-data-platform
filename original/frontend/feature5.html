@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feature 5 — ECG & HbA1c Analysis</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      font-size: 1.1rem;
+      opacity: 0.9;
+    }
+    
+    .back-btn {
+      display: inline-block;
+      color: white;
+      text-decoration: none;
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 8px;
+      margin-bottom: 20px;
+      transition: background 0.2s;
+    }
+    
+    .back-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 30px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .stat-card {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      font-size: 0.9rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .ecg-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    
+    .ecg-table th,
+    .ecg-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .ecg-table th {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #495057;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
+    }
+    
+    .ecg-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .chart-container {
+      margin-top: 30px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    #scatter-chart {
+      width: 100%;
+      height: 400px;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    
+    .badge-success {
+      background: #d4f4e2;
+      color: #10b981;
+    }
+    
+    .badge-warning {
+      background: #fff4e6;
+      color: #f59e0b;
+    }
+    
+    .badge-danger {
+      background: #fee;
+      color: #ef4444;
+    }
+    
+    .controls {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      margin-bottom: 30px;
+    }
+    
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .control-group label {
+      font-weight: 600;
+      color: #495057;
+    }
+    
+    .control-group input {
+      padding: 8px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      width: 100px;
+      font-size: 14px;
+    }
+    
+    .control-group button {
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .control-group button:hover {
+      background: #5568d3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-btn">← Back to Home</a>
+    
+    <header>
+      <h1>Feature 5 — ECG & HbA1c Analysis</h1>
+      <p class="subtitle">Explore ECG QTc intervals and their relationship with HbA1c levels</p>
+    </header>
+    
+    <div class="controls card">
+      <h3 style="margin-bottom: 15px;">Filters</h3>
+      <div class="control-group">
+        <label>Age Range (optional):</label>
+        <span>Min</span>
+        <input type="number" id="min_age" placeholder="e.g., 18" min="0">
+        <span>Max</span>
+        <input type="number" id="max_age" placeholder="e.g., 80" min="0">
+        <button onclick="loadData()">Apply Filters</button>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Overall Statistics</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="total-records">-</div>
+          <div class="stat-label">Total ECG Records</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avg-qtc">-</div>
+          <div class="stat-label">Average QTc (ms)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avg-hba1c">-</div>
+          <div class="stat-label">Average HbA1c (%)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="participants-ecg">-</div>
+          <div class="stat-label">Participants with ECG</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>ECG & HbA1c Scatter Plot</h2>
+      <div class="chart-container">
+        <canvas id="scatter-chart"></canvas>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>Recent ECG Records</h2>
+      <div id="ecg-container">
+        <div class="loading">Loading ECG data...</div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const API_BASE = '';
+    
+    async function loadData() {
+      try {
+        // Build query string with age filters
+        const minAge = document.getElementById('min_age').value;
+        const maxAge = document.getElementById('max_age').value;
+        
+        const params = [];
+        if (minAge) params.push(`min_age=${minAge}`);
+        if (maxAge) params.push(`max_age=${maxAge}`);
+        const queryString = params.length ? `?${params.join('&')}` : '';
+        
+        const response = await fetch(`${API_BASE}/api/feature5/ecg_hba1c${queryString}`);
+        const data = await response.json();
+        
+        // Handle array response
+        const records = Array.isArray(data) ? data : (data.data || []);
+        const summary = {
+          total_records: records.length,
+          participant_count: new Set(records.map(r => r.participant_id)).size,
+          avg_qtc: records.length > 0 ? records.reduce((sum, r) => sum + (parseFloat(r.qtc) || 0), 0) / records.length : 0,
+          avg_hba1c: records.length > 0 ? records.reduce((sum, r) => sum + (parseFloat(r.hba1c_value) || 0), 0) / records.length : 0
+        };
+        
+        displayStats(summary);
+        displayECGTable(records);
+        drawScatterPlot(records);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('ecg-container').innerHTML = '<div class="loading">Error loading data</div>';
+      }
+    }
+    
+    function displayStats(data) {
+      const total = data.total_records || 0;
+      const avgQtc = data.avg_qtc ? parseFloat(data.avg_qtc).toFixed(1) : 'N/A';
+      const avgHbA1c = data.avg_hba1c ? parseFloat(data.avg_hba1c).toFixed(2) : 'N/A';
+      const participants = data.participant_count || 0;
+      
+      document.getElementById('total-records').textContent = total;
+      document.getElementById('avg-qtc').textContent = avgQtc;
+      document.getElementById('avg-hba1c').textContent = avgHbA1c;
+      document.getElementById('participants-ecg').textContent = participants;
+    }
+    
+    function displayECGTable(records) {
+      const container = document.getElementById('ecg-container');
+      
+      if (records.length === 0) {
+        container.innerHTML = '<div class="loading">No ECG records found</div>';
+        return;
+      }
+      
+      let html = `
+        <table class="ecg-table">
+          <thead>
+            <tr>
+              <th>Participant ID</th>
+              <th>QTc (ms)</th>
+              <th>QT Interval (ms)</th>
+              <th>Heart Rate (bpm)</th>
+              <th>HbA1c (%)</th>
+              <th>QTc Status</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      records.slice(0, 50).forEach(record => {
+        const qtc = parseFloat(record.qtc || 0);
+        const status = getQTcStatus(qtc);
+        const badgeClass = status === 'Normal' ? 'badge-success' : 
+                          status === 'Borderline' ? 'badge-warning' : 
+                          'badge-danger';
+        
+        html += `
+          <tr>
+            <td>${record.participant_id}</td>
+            <td><strong>${qtc.toFixed(1)}</strong></td>
+            <td>${record.qt_interval ? parseFloat(record.qt_interval).toFixed(1) : 'N/A'}</td>
+            <td>${record.heart_rate ? parseFloat(record.heart_rate).toFixed(0) : 'N/A'}</td>
+            <td>${record.hba1c_value ? parseFloat(record.hba1c_value).toFixed(2) : 'N/A'}</td>
+            <td><span class="badge ${badgeClass}">${status}</span></td>
+          </tr>
+        `;
+      });
+      
+      html += `
+          </tbody>
+        </table>
+      `;
+      
+      container.innerHTML = html;
+    }
+    
+    function getQTcStatus(qtc) {
+      if (qtc < 430) return 'Normal';
+      if (qtc >= 430 && qtc < 450) return 'Borderline';
+      return 'Prolonged';
+    }
+    
+    function drawScatterPlot(records) {
+      const canvas = document.getElementById('scatter-chart');
+      const ctx = canvas.getContext('2d');
+      
+      canvas.width = canvas.offsetWidth;
+      canvas.height = 400;
+      
+      if (records.length === 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = '16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+        return;
+      }
+      
+      const padding = { left: 60, right: 200, top: 40, bottom: 60 };
+      const chartWidth = canvas.width - padding.left - padding.right;
+      const chartHeight = canvas.height - padding.top - padding.bottom;
+      
+      // Study group color mapping
+      const groupColors = {
+        'healthy': '#10b981',                    // Green
+        'pre_diabetes_lifestyle_controlled': '#f59e0b',  // Orange
+        'oral_medication_and_or_non_insulin_injectable_medication_controlled': '#3b82f6',  // Blue
+        'insulin_dependent': '#ef4444'           // Red
+      };
+      
+      const groupNames = {
+        'healthy': 'Healthy',
+        'pre_diabetes_lifestyle_controlled': 'Pre-Diabetes',
+        'oral_medication_and_or_non_insulin_injectable_medication_controlled': 'Non-Insulin Medication',
+        'insulin_dependent': 'Insulin Dependent'
+      };
+      
+      // Extract data points with study group
+      const points = records.filter(r => r.qtc && r.hba1c_value).map(r => ({
+        x: parseFloat(r.hba1c_value),
+        y: parseFloat(r.qtc),
+        group: r.study_group || 'unknown',
+        participant_id: r.participant_id
+      }));
+      
+      if (points.length === 0) {
+        ctx.fillStyle = '#666';
+        ctx.font = '16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('No valid data points', canvas.width / 2, canvas.height / 2);
+        return;
+      }
+      
+      const minX = Math.min(...points.map(p => p.x));
+      const maxX = Math.max(...points.map(p => p.x));
+      const minY = Math.min(...points.map(p => p.y));
+      const maxY = Math.max(...points.map(p => p.y));
+      
+      const xScale = (x) => padding.left + ((x - minX) / (maxX - minX)) * chartWidth;
+      const yScale = (y) => padding.top + chartHeight - ((y - minY) / (maxY - minY)) * chartHeight;
+      
+      // Draw axes
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(padding.left, padding.top);
+      ctx.lineTo(padding.left, padding.top + chartHeight);
+      ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
+      ctx.stroke();
+      
+      // Draw points with color by study group
+      points.forEach(point => {
+        const color = groupColors[point.group] || '#999999';
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(xScale(point.x), yScale(point.y), 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+      });
+      
+      // Draw legend
+      const legendX = padding.left + chartWidth + 20;
+      let legendY = padding.top + 20;
+      
+      ctx.font = 'bold 13px system-ui';
+      ctx.fillStyle = '#333';
+      ctx.textAlign = 'left';
+      ctx.fillText('Study Groups', legendX, legendY);
+      legendY += 25;
+      
+      // Get unique groups from the data
+      const uniqueGroups = [...new Set(points.map(p => p.group))].filter(g => g !== 'unknown');
+      
+      ctx.font = '12px system-ui';
+      uniqueGroups.forEach(group => {
+        // Draw color box
+        ctx.fillStyle = groupColors[group] || '#999999';
+        ctx.fillRect(legendX, legendY - 10, 15, 15);
+        
+        // Draw label
+        ctx.fillStyle = '#666';
+        ctx.fillText(groupNames[group] || group, legendX + 22, legendY + 2);
+        
+        // Count for this group
+        const count = points.filter(p => p.group === group).length;
+        ctx.fillStyle = '#999';
+        ctx.font = '11px system-ui';
+        ctx.fillText(`(n=${count})`, legendX + 22, legendY + 14);
+        ctx.font = '12px system-ui';
+        
+        legendY += 35;
+      });
+      
+      // Draw labels
+      ctx.fillStyle = '#666';
+      ctx.font = '12px system-ui';
+      ctx.textAlign = 'center';
+      
+      // X-axis label
+      ctx.fillText('HbA1c (%)', padding.left + chartWidth / 2, canvas.height - 10);
+      
+      // Y-axis label
+      ctx.save();
+      ctx.translate(15, canvas.height / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('QTc (ms)', 0, 0);
+      ctx.restore();
+      
+      // Axis ticks
+      ctx.fillStyle = '#666';
+      ctx.font = '11px system-ui';
+      
+      // X-axis ticks
+      for (let i = 0; i <= 5; i++) {
+        const x = minX + (maxX - minX) * i / 5;
+        const px = xScale(x);
+        ctx.textAlign = 'center';
+        ctx.fillText(x.toFixed(1), px, padding.top + chartHeight + 20);
+        
+        ctx.strokeStyle = '#f1f3f5';
+        ctx.beginPath();
+        ctx.moveTo(px, padding.top);
+        ctx.lineTo(px, padding.top + chartHeight);
+        ctx.stroke();
+      }
+      
+      // Y-axis ticks
+      for (let i = 0; i <= 5; i++) {
+        const y = minY + (maxY - minY) * i / 5;
+        const py = yScale(y);
+        ctx.textAlign = 'right';
+        ctx.fillText(y.toFixed(0), padding.left - 8, py + 4);
+        
+        ctx.strokeStyle = '#f1f3f5';
+        ctx.beginPath();
+        ctx.moveTo(padding.left, py);
+        ctx.lineTo(padding.left + chartWidth, py);
+        ctx.stroke();
+      }
+    }
+    
+    // Load data on page load
+    loadData();
+  </script>
+</body>
+</html>
