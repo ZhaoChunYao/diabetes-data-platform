@@ -1,0 +1,44 @@
+name: cs554-mysql
+
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: project_554
+      MYSQL_USER: app
+      MYSQL_PASSWORD: app_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_full_data:/var/lib/mysql
+      # The dump is mounted at runtime, not copied into the Flask image.
+      - ./sql_dump/project_554_complete.sql:/docker-entrypoint-initdb.d/010_project_554_complete.sql:ro
+      - ./docker/mysql/init/999_readiness.sql:/docker-entrypoint-initdb.d/999_readiness.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -h 127.0.0.1 -u root -p$${MYSQL_ROOT_PASSWORD} -D $${MYSQL_DATABASE} -Nse \"SELECT COUNT(*) = 1 FROM _docker_init_status WHERE status = 'ready'\" | grep -q 1"]
+      # The full SQL dump is imported before the readiness marker is created.
+      # Allow up to 30 minutes for a first initialization on a slower disk.
+      start_period: 20m
+      interval: 10s
+      timeout: 10s
+      retries: 60
+
+  app:
+    build: .
+    environment:
+      DB_HOST: db
+      DB_USER: app
+      DB_PASS: app_password
+      DB_NAME: project_554
+      PORT: 5001
+    ports:
+      - "5001:5001"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql_full_data:
+    # Keep using the volume created before the Compose projects were separated.
+    name: lizhongyusfiles-cs554_final_submission_mysql_full_data

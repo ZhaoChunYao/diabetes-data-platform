@@ -1,0 +1,18 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+COPY requirements.txt requirements-postgres.txt ./
+RUN pip install --no-cache-dir -r requirements-postgres.txt
+
+COPY backend ./backend
+COPY frontend ./frontend
+COPY tools ./tools
+COPY .env.example ./.env.example
+
+EXPOSE 5001
+
+CMD ["python", "backend/server_unified.py"]

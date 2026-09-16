@@ -1,0 +1,61 @@
+name: cs554-pg-full
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: project_554
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app_password
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_full_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      SOURCE_DB_HOST: host.docker.internal
+      SOURCE_DB_PORT: 3307
+      SOURCE_DB_USER: app
+      SOURCE_DB_PASS: app_password
+      SOURCE_DB_NAME: project_554
+      TARGET_DB_HOST: db
+      TARGET_DB_PORT: 5432
+      TARGET_DB_USER: app
+      TARGET_DB_PASS: app_password
+      TARGET_DB_NAME: project_554
+    command: ["python", "tools/migrate_mysql_to_postgres.py"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      DB_DRIVER: postgres
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: app
+      DB_PASS: app_password
+      DB_NAME: project_554
+      PORT: 5001
+    ports:
+      - "5003:5001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_full_data:
+    # Keep using the existing full-migration target volume.
+    name: lizhongyusfiles-cs554_final_submission_postgres_full_data
