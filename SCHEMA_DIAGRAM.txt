@@ -1,0 +1,205 @@
+# Database Schema Visual Diagram
+
+## Three-Layer Architecture
+
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                         LAYER 1: METADATA                                ┃
+┃                          (905 rows, ~1 MB)                               ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+         ┌─────────────────────────────────────────────────────┐
+         │           participants (905 rows)                   │
+         │  ┌──────────────────────────────────────────────┐  │
+         │  │ PK: participant_id VARCHAR(20)               │  │
+         │  │     age INT                                  │  │
+         │  │     sex VARCHAR(10)                          │  │
+         │  │     race VARCHAR(100)                        │  │
+         │  │     ethnicity VARCHAR(100)                   │  │
+         │  │     study_group VARCHAR(100)                 │  │
+         │  │     site_id VARCHAR(50)                      │  │
+         │  └──────────────────────────────────────────────┘  │
+         └─────────────────────┬───────────────────────────────┘
+                               │
+           ┌───────────────────┼───────────────────┬────────────────────┐
+           │                   │                   │                    │
+           ▼                   ▼                   ▼                    ▼
+    ┌─────────────┐    ┌──────────────┐   ┌──────────────┐   ┌─────────────────┐
+    │ measurement │    │ ecg_metadata │   │  conditions  │   │ participant_    │
+    │   (905)     │    │    (905)     │   │     (4)      │   │ conditions      │
+    │─────────────│    │──────────────│   │──────────────│   │   (905)         │
+    │ PK,FK:      │    │ PK,FK:       │   │ PK:          │   │─────────────────│
+    │ participant │    │ participant  │   │ condition_id │   │ PK: id          │
+    │ _id         │    │ _id          │   │ condition_   │   │ FK: participant │
+    │             │    │              │   │ name (UNIQUE)│   │     _id         │
+    │ a1c_percent │    │ qtc_ms       │   └──────────────┘   │ FK: condition   │
+    │ glucose     │    │ hr_bpm       │          ▲           │     _id         │
+    │ cholesterol │    │ pr_ms        │          │           └─────────────────┘
+    │ bp_systolic │    │ qrs_ms       │          │                    
+    │ bmi         │    │ p_ms         │          │                    
+    │ ...         │    │ t_ms         │          │                    
+    │             │    │ qt_ms        │          │                    
+    │             │    │ (GENERATED!) │          │                    
+    └─────────────┘    └──────────────┘          │                    
+                                       └──────────┘                    
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                    LAYER 2: DAILY AGGREGATES                             ┃
+┃                      (170K rows, ~8 MB)                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+         ┌──────────────────────────────────────────────────────────┐
+         │      FROM participants (FK: participant_id)              │
+         └──────────────────────┬───────────────────────────────────┘
+                                │
+      ┌────────────┬────────────┼────────────┬───────────┬───────────┐
+      ▼            ▼            ▼            ▼           ▼           ▼
+┌──────────┐ ┌─────────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐ ┌──────────┐
+│cgm_daily │ │hr_daily │ │sleep_    │ │spo2_    │ │stress_   │ │activity_ │
+│ (28.3K)  │ │ (24.4K) │ │daily     │ │daily    │ │daily     │ │daily     │
+│──────────│ │─────────│ │ (894)    │ │ (19.3K) │ │ (24.4K)  │ │ (27.2K)  │
+│PK: id    │ │PK: id   │ │──────────│ │─────────│ │──────────│ │──────────│
+│FK: part  │ │FK: part │ │PK: id    │ │PK: id   │ │PK: id    │ │PK: id    │
+│day_index │ │day_index│ │FK: part  │ │FK: part │ │FK: part  │ │FK: part  │
+│date      │ │date     │ │day_index │ │day_index│ │day_index │ │day_index │
+│          │ │         │ │date      │ │date     │ │date      │ │date      │
+│glucose_  │ │hr_bpm_  │ │          │ │         │ │          │ │          │
+│avg       │ │avg      │ │duration_ │ │spo2_    │ │stress_   │ │steps_    │
+│glucose_  │ │hr_bpm_  │ │avg       │ │avg      │ │avg       │ │avg       │
+│min       │ │min      │ │sleep_    │ │spo2_    │ │stress_   │ │calories_ │
+│glucose_  │ │hr_bpm_  │ │score_avg │ │min      │ │min       │ │avg       │
+│max       │ │max      │ │num_      │ │spo2_    │ │stress_   │ │active_   │
+│glucose_  │ │hr_bpm_  │ │sessions  │ │max      │ │max       │ │mins_avg  │
+│std       │ │std      │ │          │ │spo2_std │ │stress_   │ │num_      │
+│num_      │ │num_     │ │          │ │num_     │ │std       │ │readings  │
+│readings  │ │readings │ │          │ │readings │ │num_      │ │          │
+│          │ │         │ │          │ │         │ │readings  │ │          │
+│IDX: (pt, │ │IDX: (pt,│ │IDX: (pt, │ │IDX: (pt,│ │IDX: (pt, │ │IDX: (pt, │
+│ day_idx) │ │ day_idx)│ │ day_idx) │ │ day_idx)│ │ day_idx) │ │ day_idx) │
+└──────────┘ └─────────┘ └──────────┘ └─────────┘ └──────────┘ └──────────┘
+      │            │            │            │           │           │
+      │            │            │            │           │           │
+      ▼            ▼            ▼            ▼           ▼           ▼
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                   LAYER 3: MINUTE-LEVEL TIMESERIES                       ┃
+┃                     (31.5M rows, ~5 GB)                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+         ┌──────────────────────────────────────────────────────────┐
+         │      FROM participants (FK: participant_id)              │
+         └──────────────────────┬───────────────────────────────────┘
+                                │
+      ┌────────────┬────────────┼────────────┬───────────┬───────────┐
+      ▼            ▼            ▼            ▼           ▼           ▼
+┌──────────┐ ┌─────────┐ ┌──────────┐ ┌─────────┐ ┌──────────┐ ┌──────────┐
+│cgm_      │ │hr_      │ │sleep_    │ │spo2_    │ │stress_   │ │activity_ │
+│readings  │ │readings │ │readings  │ │readings │ │readings  │ │readings  │
+│(5.7M)    │ │(10.7M)  │ │ (235K)   │ │ (1.4M)  │ │ (9.3M)   │ │ (4.2M)   │
+│──────────│ │─────────│ │──────────│ │─────────│ │──────────│ │──────────│
+│PK: id    │ │PK: id   │ │PK: id    │ │PK: id   │ │PK: id    │ │PK: id    │
+│(BIGINT)  │ │(BIGINT) │ │(BIGINT)  │ │(BIGINT) │ │(BIGINT)  │ │(BIGINT)  │
+│          │ │         │ │          │ │         │ │          │ │          │
+│FK: part  │ │FK: part │ │FK: part  │ │FK: part │ │FK: part  │ │FK: part  │
+│          │ │         │ │          │ │         │ │          │ │          │
+│day_index │ │day_index│ │day_index │ │day_index│ │day_index │ │day_index │
+│(INT)     │ │(INT)    │ │(INT)     │ │(INT)    │ │(INT)     │ │(INT)     │
+│          │ │         │ │          │ │         │ │          │ │          │
+│timestamp │ │timestamp│ │timestamp │ │timestamp│ │timestamp │ │timestamp │
+│(DATETIME)│ │(DATETIME│ │(DATETIME)│ │(DATETIME│ │(DATETIME)│ │(DATETIME)│
+│          │ │         │ │          │ │         │ │          │ │          │
+│glucose_  │ │hr_bpm   │ │duration_ │ │spo2_    │ │stress_   │ │steps_    │
+│mg_dl     │ │(INT)    │ │minutes   │ │percent  │ │level     │ │count     │
+│(DECIMAL) │ │         │ │(INT)     │ │(DECIMAL)│ │(INT)     │ │(INT)     │
+│          │ │         │ │          │ │         │ │          │ │          │
+│          │ │         │ │sleep_    │ │         │ │          │ │calories_ │
+│          │ │         │ │stage     │ │         │ │          │ │burned    │
+│          │ │         │ │(VARCHAR) │ │         │ │          │ │(DECIMAL) │
+│          │ │         │ │          │ │         │ │          │ │          │
+│          │ │         │ │          │ │         │ │          │ │activity_ │
+│          │ │         │ │          │ │         │ │          │ │type      │
+│          │ │         │ │          │ │         │ │          │ │(VARCHAR) │
+│          │ │         │ │          │ │         │ │          │ │          │
+│IDX:      │ │IDX:     │ │IDX:      │ │IDX:     │ │IDX:      │ │IDX:      │
+│(pt,day,  │ │(pt,day, │ │(pt,day,  │ │(pt,day, │ │(pt,day,  │ │(pt,day,  │
+│ time)    │ │ time)   │ │ time)    │ │ time)   │ │ time)    │ │ time)    │
+│          │ │         │ │          │ │         │ │          │ │          │
+│5-min     │ │1-min    │ │Variable  │ │Variable │ │1-min     │ │Variable  │
+│intervals │ │intervals│ │(sessions)│ │(spot)   │ │intervals │ │(events)  │
+└──────────┘ └─────────┘ └──────────┘ └─────────┘ └──────────┘ └──────────┘
+```
+
+## Key Relationships
+
+```
+participants (1)  ─────── (1) measurement
+             (1)  ─────── (1) ecg_metadata
+             (1)  ─────── (M) participant_conditions ─────── (1) conditions
+
+participants (1)  ─────── (M) cgm_daily      ─────── (M) cgm_readings
+             (1)  ─────── (M) hr_daily       ─────── (M) hr_readings
+             (1)  ─────── (M) sleep_daily    ─────── (M) sleep_readings
+             (1)  ─────── (M) spo2_daily     ─────── (M) spo2_readings
+             (1)  ─────── (M) stress_daily   ─────── (M) stress_readings
+             (1)  ─────── (M) activity_daily ─────── (M) activity_readings
+```
+
+Legend: (1) = One, (M) = Many
+
+## Index Strategy Visualization
+
+```
+Composite Index: (participant_id, day_index, timestamp)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Query: Get participant 1001's HR from day 1-7
+
+Step 1: Seek on participant_id = '1001'    ✓ Index seek
+        ↓ Narrows to ~11,000 rows
+        
+Step 2: Filter day_index BETWEEN 1 AND 7   ✓ Index range scan
+        ↓ Narrows to ~10,000 rows
+        
+Step 3: Order by timestamp                 ✓ Index already sorted
+        ↓ No filesort needed!
+
+Result: 50-100ms query time (vs 8-12 seconds without index)
+```
+
+## Storage Distribution
+
+```
+┌────────────────────────────────────────────────────┐
+│              Total Database: 6.5 GB                │
+├────────────────────────────────────────────────────┤
+│                                                    │
+│  ████████████████████████████████████ 5.0 GB      │  Timeseries Data (77%)
+│  ██████ 1.0 GB                                     │  Indexes (15%)
+│  ██ 0.4 GB                                         │  Daily Aggregates (6%)
+│  █ 0.1 GB                                          │  Metadata + Other (2%)
+│                                                    │
+└────────────────────────────────────────────────────┘
+```
+
+## Query Performance by Layer
+
+```
+LAYER 1 (Metadata):         <10ms    ━━━━━━━━━━ (fastest)
+LAYER 2 (Daily Aggregates): 10-100ms ━━━━━━━━━━━━━━━━━━━━
+LAYER 3 (Timeseries):       50-200ms ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+## Design Philosophy
+
+```
+                          SPEED ←─────→ DETAIL
+                          
+Group Queries  ──→  Use Daily Aggregates    (fast, summary)
+Individual     ──→  Use Timeseries          (slower, detailed)
+
+                   Best of Both Worlds!
+```
+
+---
+
+
