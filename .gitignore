@@ -1,37 +1,27 @@
-# Local environments and secrets
-**/.venv/
+# Local environments and credentials
 **/.env
 **/.env.*
 !**/.env.example
+**/*accessKeys*.csv
+**/*credentials*.csv
+**/*.secret
+**/*environment-final*.txt
 
-# Python/editor/OS output
-**/__pycache__/
-**/*.py[cod]
-**/.Rhistory
-**/desktop.ini
-**/.DS_Store
-**/.vscode/
-
-# Generated documentation exports
-**/README.html
-**/START_HERE.html
-**/DATABASE_DESIGN_REPORT.html
-
-# Restricted or large data
-dataset/
-sql_dump/
+# Source data and database exports
 **/dataset/
 **/sql_dump/
-*.zip
-*.7z
-*.bak
+**/*.dump
+**/*.tar
+**/*.tar.gz
+**/*.bak
 
-# Runtime/test output
-*.log
-coverage.xml
-.coverage
-htmlcov/
+# Generated Python/runtime files
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/.venv/
+**/.pytest_cache/
 
-# Docker/local state
-.docker/
-docker-data/
+# Local transcripts and cloud evidence containing data payloads
+Windows PowerShell.txt
+aws/evidence/phase6-final-verification-*.txt

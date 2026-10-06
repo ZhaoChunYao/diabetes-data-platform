@@ -1,0 +1,36 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: cs554-phase6
+  region: us-east-2
+
+# Cost-conscious cloud profile: two small workers so the primary and replica
+# can be scheduled independently. Kubernetes version is selected at preflight.
+iam:
+  withOIDC: true
+  serviceAccounts:
+    - metadata:
+        name: cs554-postgres-eks
+        namespace: cs554
+      roleName: cs554-phase6-postgres-s3
+      attachPolicyARNs:
+        - arn:aws:iam::<account-id>:policy/cs554-barman-s3-policy
+
+managedNodeGroups:
+  - name: phase6-workers
+    instanceType: t3.medium
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 2
+    volumeType: gp3
+    volumeSize: 30
+    privateNetworking: false
+    labels:
+      project: cs554
+      phase: phase6
+
+addons:
+  - name: aws-ebs-csi-driver
+    wellKnownPolicies:
+      ebsCSIController: true

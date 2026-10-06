@@ -14,7 +14,7 @@ The real dataset is not included in this repository. It may contain restricted r
 
 ## How the SQL dump relates to the original data
 
-The file used by the full local deployment, `../sql_dump/project_554_complete.sql`, is not a file downloaded directly from the AI-READI website. It is a MySQL logical export of an already populated `project_554` database.
+The file used by the full local deployment, `sql_dump/project_554_complete.sql`, is not a file downloaded directly from the AI-READI website. It is a MySQL logical export of an already populated `project_554` database.
 
 The intended data pipeline is:
 
@@ -73,7 +73,7 @@ The synthetic PostgreSQL fixture is a runnable, small version of these applicati
 
 The complete local workflow is separate from the GitHub demo. It requires an authorized copy of the course-scale SQL database, which is intentionally excluded by `.gitignore`. This is a derived database artifact, not the official raw download.
 
-1. Place the authorized dump at `../sql_dump/project_554_complete.sql` from this folder.
+1. Place the authorized dump at `sql_dump/project_554_complete.sql`.
 2. Start the complete MySQL source database:
 
    ```powershell

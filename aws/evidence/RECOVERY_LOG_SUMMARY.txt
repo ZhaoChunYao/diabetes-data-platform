@@ -1,0 +1,20 @@
+Phase 6 recovery log summary
+Captured during the successful EKS restore on 2026-10-05.
+
+Restore through plugin detected, proceeding...
+starting point-in-time recovery to 2026-10-02 13:23:57+00
+restored log file 00000002000000000000009E from archive
+restored log file 00000002000000000000009F from archive
+restored log file 0000000200000000000000A0 from archive
+restored log file 0000000200000000000000A1 from archive
+restored log file 0000000200000000000000A2 from archive
+consistent recovery state reached at 0/A0000000
+recovery stopping before commit of transaction 981
+archive recovery complete
+restore command execution completed without errors
+
+The recovery Job was later no longer present in the namespace. This summary
+preserves the key output captured while the Job was running; the current
+CloudNativePG Cluster status independently reports BootstrapCompleted,
+ClusterIsReady, ContinuousArchivingSuccess, two healthy instances, and
+timeline ID 3.

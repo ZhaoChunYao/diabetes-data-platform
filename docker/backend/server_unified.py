@@ -681,11 +681,12 @@ def get_single_participant_data():
         for group in groups:
             # Get a random participant from this group that has CGM timeseries data
             query = f"""
-                SELECT DISTINCT p.participant_id, p.study_group, p.age
+                SELECT p.participant_id, p.study_group, p.age
                 FROM participants p
                 JOIN cgm_readings c ON p.participant_id = c.participant_id
                 WHERE p.study_group = %s
                   AND c.day_index BETWEEN %s AND %s
+                GROUP BY p.participant_id, p.study_group, p.age
                 ORDER BY {RANDOM_ORDER}
                 LIMIT 1
             """
@@ -1326,8 +1327,9 @@ def ecg_hba1c():
         max_age = request.args.get('max_age', type=int)
         
         # Build WHERE clause based on filters
+        hba1c_label = 'HbA1c (%%)' if DB_DRIVER == 'postgres' else 'HbA1c (%)'
         where_clauses = [
-            "m.measurement_source_value = 'HbA1c (%)'",
+            f"m.measurement_source_value = '{hba1c_label}'",
             "e.qtc IS NOT NULL",
             "e.heart_rate IS NOT NULL",
             "e.heart_rate > 0",

@@ -190,7 +190,7 @@ From this project folder:
 docker compose up --build
 ```
 
-On the first run, MySQL imports `../sql_dump/project_554_complete.sql`. This can take a while. The health check allows up to 30 minutes for initialization, and the application is not considered ready until the final readiness marker has been written after the dump import completes. If an import is interrupted or the volume is left unhealthy, remove only the Docker test volume with `docker compose down -v` and start again; this does not touch a separate host MySQL installation.
+On the first run, MySQL imports `sql_dump/project_554_complete.sql`. This can take a while. The health check allows up to 30 minutes for initialization, and the application is not considered ready until the final readiness marker has been written after the dump import completes. If an import is interrupted or the volume is left unhealthy, remove only the Docker test volume with `docker compose down -v` and start again; this does not touch a separate host MySQL installation.
 
 Then check:
 
@@ -369,3 +369,64 @@ Phase 2B is complete only when:
 - Restarting the PostgreSQL stack preserves the data.
 
 Only after these checks should Phase 3 deploy PostgreSQL under Kubernetes and CloudNativePG. Phase 3 and later must use `docker-compose.postgres-full.yml`'s PostgreSQL data model, not the representative seed database.
+
+## Phase 3 - Local Kubernetes and CloudNativePG
+
+The current project layout separates the verified implementation into four areas:
+
+- `original/` preserves the pre-modernization project.
+- `docker/` contains the Phase 1 and Phase 2 Compose implementation.
+- `kubernetes/` contains the Phase 3 manifests and PowerShell scripts.
+- `aws/` is reserved for the later AWS phase.
+
+Phase 3 moves the complete PostgreSQL application into a local Kubernetes cluster
+managed by Docker Desktop. The resource-constrained local profile uses two
+PostgreSQL instances: one primary and one replica. Flask connects to CloudNativePG's `cs554-postgres-rw`
+Service, so the application does not depend on a particular PostgreSQL pod name.
+
+### Full-data bootstrap
+
+The existing full PostgreSQL Compose database remains the source only during the
+first bootstrap. The CloudNativePG `Cluster` resource imports `project_554` from
+`host.docker.internal:5434` using the official microservice import mechanism. The
+data is imported once into the new primary; PostgreSQL streaming replication then
+populates the replica. This is a data migration into a managed cluster, not two
+independent imports.
+
+### Phase 3 files
+
+The implementation is in `kubernetes/`:
+
+- `00-namespace.yaml` creates the isolated `cs554` namespace.
+- `20-cluster.yaml` requests two PostgreSQL 16 instances, 10Gi per instance, and
+  the full-data import.
+- `30-app.yaml` deploys the Flask image and exposes it on NodePort `30003`.
+- `install-cnpg.ps1` installs the pinned CloudNativePG 1.30.0 operator.
+- `deploy.ps1` starts the verified source, builds the local image, creates the
+  Secret, applies the cluster, waits for import/readiness, and deploys Flask.
+- `verify.ps1` checks nodes, cluster state, PVCs, services, and application APIs.
+
+### Phase 3 acceptance standard
+
+Phase 3 is complete only when the CloudNativePG Cluster reports two ready
+instances, the pods show one primary and one replica, two PVCs exist, Flask's
+`/health` reports PostgreSQL, and the application APIs return data through the
+Kubernetes deployment.
+
+### Phase 4 - Primary failure and automatic promotion
+
+Run `kubernetes/failover.ps1` only after the reduced local profile passes
+`kubernetes/verify.ps1`. The script writes a temporary marker row, records the
+current primary, deletes that primary Pod, waits for CloudNativePG to promote the
+replica, verifies that the marker survived, and checks Flask `/health` and
+`/api/groups`. It then removes the temporary marker table.
+
+The script reports the old primary, the promoted primary, marker survival, and
+recovery time. This is evidence of local instance-level failover. It is not
+evidence of an AWS availability-zone outage because Docker Desktop uses one local
+node. The source PostgreSQL Compose volume and both Kubernetes PVCs remain intact.
+
+The Docker Desktop Kubernetes cluster is a local learning and validation
+environment. It demonstrates Kubernetes resource management and CloudNativePG
+replication; it does not yet represent AWS multi-availability-zone high
+availability.

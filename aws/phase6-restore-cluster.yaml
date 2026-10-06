@@ -1,0 +1,47 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: cs554-s3-restore
+  namespace: cs554
+spec:
+  configuration:
+    destinationPath: s3://<backup-bucket>/cs554/phase5
+    s3Credentials:
+      inheritFromIAMRole: true
+  instanceSidecarConfiguration:
+    env:
+      - name: AWS_REGION
+        value: us-east-2
+      - name: AWS_DEFAULT_REGION
+        value: us-east-2
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cs554-postgres-eks
+  namespace: cs554
+  labels:
+    app.kubernetes.io/part-of: cs554-healthcare-platform
+    app.kubernetes.io/component: phase6-eks-database
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.10-system-trixie
+  serviceAccountTemplate:
+    metadata:
+      annotations:
+        eks.amazonaws.com/role-arn: arn:aws:iam::<account-id>:role/cs554-phase6-postgres-s3
+  bootstrap:
+    recovery:
+      source: source
+      recoveryTarget:
+        targetTime: 2026-10-02T13:23:57Z
+  externalClusters:
+    - name: source
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters:
+          barmanObjectName: cs554-s3-restore
+          serverName: cs554-postgres
+  storage:
+    size: 10Gi
+    storageClass: cs554-gp3

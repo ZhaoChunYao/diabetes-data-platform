@@ -1,0 +1,6 @@
+# Never commit cloud credentials or local secret material.
+cs554-barman_accessKeys.csv
+*.secret
+.env
+.env.*
+!.env.example

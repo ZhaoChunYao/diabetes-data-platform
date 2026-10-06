@@ -1,48 +1,54 @@
-# Diabetes Data Platform — Four-Phase Project
+# Diabetes Data Platform
 
-This repository presents the same application as four stages:
+This repository documents a four-phase modernization of a Flask healthcare
+analytics application:
 
-| Folder | Purpose | Current status |
-|---|---|---|
-| [`original/`](original/) | Corrected course version using MySQL | Runnable reference version |
-| [`docker/`](docker/) | PostgreSQL and Docker deployment | Runnable Phase 2 version |
-| [`kubernetes/`](kubernetes/) | Kubernetes deployment plan and future manifests | Reserved for Phase 3 |
-| [`aws/`](aws/) | AWS/EKS deployment plan and future manifests | Reserved for Phase 4 |
+1. `original/` — the corrected MySQL reference application.
+2. `docker/` — Dockerized MySQL and PostgreSQL versions, including the full
+   PostgreSQL migration path.
+3. `kubernetes/` — local Kubernetes and CloudNativePG deployment, persistent
+   storage, and a real primary-failure promotion test.
+4. `aws/` — EKS, ECR, encrypted EBS storage, S3-backed Barman Cloud recovery,
+   and deployment runbooks.
 
-The folders are intentionally visible instead of making the reader navigate Git tags. The tags may remain as historical backup points, but the four folders are the primary project organization.
+Phases 1–6 were executed and verified. The temporary EKS runtime was deleted
+after evidence collection to avoid ongoing charges. The S3 backup, ECR image,
+deployment manifests, runbooks, and local acceptance evidence were retained.
 
-## Quick start
+## Public-repository boundary
 
-For the public repository, use the small synthetic PostgreSQL demo:
+This public repository contains application code, schemas, deployment
+templates, scripts, and documentation. It intentionally does not contain:
+
+- the authorized course SQL dump;
+- the AI-READI source dataset or processed patient-level data;
+- AWS access-key files, login caches, passwords, or `.env` files;
+- raw cloud API payloads. The manually reviewed screenshots are included as
+  qualitative UI evidence under `aws/evidence/screenshots/`.
+
+The public Docker quick start uses the small synthetic PostgreSQL fixture:
 
 ```powershell
 cd docker
 docker compose -f docker-compose.postgres.yml up --build -d
 ```
 
-Open `http://localhost:5002/`.
+Open `http://localhost:5002/`. The full-data workflow requires the separately
+authorized SQL dump and is documented in `docker/PROJECT_GUIDE.md`.
 
-The demo data is synthetic and safe to publish. The real AI-READI data and the course SQL dump are not included. The full-data MySQL workflow expects the authorized dump at the repository root:
+## Cloud deployment
 
-```text
-sql_dump/project_554_complete.sql
-```
+The AWS files use placeholders for account-specific values. Substitute the
+account ID, ECR image, backup bucket, and IAM role in your own environment
+before running the scripts. The EKS runtime is intentionally not left running
+by default.
 
-That directory is ignored by Git. From `docker/`, start the full MySQL version with:
+See:
 
-```powershell
-docker compose -f docker-compose.yml up --build -d
-```
+- [`docker/PROJECT_GUIDE.md`](docker/PROJECT_GUIDE.md)
+- [`kubernetes/README.md`](kubernetes/README.md)
+- [`aws/README.md`](aws/README.md)
+- [`aws/evidence/PHASE6_ACCEPTANCE_REPORT.md`](aws/evidence/PHASE6_ACCEPTANCE_REPORT.md)
 
-## Data source and SQL dump provenance
-
-The application is based on the [AI-READI Flagship Dataset](https://aireadi.org/). See the [official documentation](https://docs.aireadi.org/) and [dataset access portal](https://fairhub.io/datasets/1/access/login).
-
-The SQL dump is not downloaded directly from that website. It is a logical export of a populated `project_554` MySQL database after project-specific cleaning, field mapping, table loading, and aggregate generation. The repository contains the schema and a partial loader as documentation, plus a small synthetic fixture for demonstration. A raw-data download alone cannot currently recreate the exact course dump without completing those missing ETL steps.
-
-## Phase documentation
-
-- [Original version guide](original/PROJECT_GUIDE.md)
-- [Docker/PostgreSQL Phase 2 guide](docker/PROJECT_GUIDE.md)
-- [Kubernetes phase notes](kubernetes/README.md)
-- [AWS/EKS phase notes](aws/README.md)
+This is a research-data exploration application, not a medical diagnosis or
+treatment system.

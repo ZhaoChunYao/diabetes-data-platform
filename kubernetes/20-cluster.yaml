@@ -1,0 +1,46 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cs554-postgres
+  namespace: cs554
+  labels:
+    app.kubernetes.io/part-of: cs554-healthcare-platform
+spec:
+  # Resource-constrained local profile: one primary and one streaming replica.
+  # Phase 4 only needs one eligible replica to demonstrate promotion.
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.10-system-trixie
+  primaryUpdateStrategy: supervised
+
+  # Import the complete project_554 database from the already verified
+  # PostgreSQL Compose source. The import runs only during first bootstrap.
+  bootstrap:
+    initdb:
+      database: project_554
+      owner: app
+      secret:
+        name: cs554-db-credentials
+      import:
+        type: microservice
+        databases:
+          - project_554
+        source:
+          externalCluster: compose-postgres
+
+  # This is a local Docker Desktop lab. Each instance gets its own persistent
+  # volume. The current imported database uses about 6-6.5Gi, so 10Gi leaves
+  # operational headroom without retaining the earlier 20Gi allocation.
+  storage:
+    size: 10Gi
+
+  externalClusters:
+    - name: compose-postgres
+      connectionParameters:
+        host: host.docker.internal
+        port: "5434"
+        user: app
+        dbname: project_554
+        sslmode: disable
+      password:
+        name: cs554-db-credentials
+        key: password
